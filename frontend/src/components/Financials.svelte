@@ -27,7 +27,6 @@
     clearExpenseCategorySuccess,
     clearExpenseCategoryError
   } from '../stores/expenseCategoryStore.js';
-  import { isAdmin } from '../stores/authStore.js';
   import PaymentModal from './PaymentModal.svelte';
 
   const financialSections = [
@@ -133,15 +132,10 @@
     reporting_group: '',
     sort_order: 0
   };
-  let advancedFieldsExpanded = false;
   let expenseCategoryFormError = '';
   let expenseCategoryFormLoading = false;
   let showExpenseCategoryDeleteConfirm = false;
   let expenseCategoryToDelete = null;
-  let expenseCategoryDeleteMode = 'soft'; // 'soft' or 'permanent'
-  
-  // Admin check
-  $: isUserAdmin = isAdmin();
 
   onMount(() => {
     loadInvoiceOverview();
@@ -189,6 +183,10 @@
   }
 
   // Expense Category handlers
+  function clearExpenseCategoryFieldErrors() {
+    expenseCategoryFormError = '';
+  }
+
   function openCreateExpenseCategoryModal() {
     expenseCategoryModalMode = 'create';
     expenseCategoryForm = {
@@ -208,8 +206,7 @@
       reporting_group: '',
       sort_order: 0
     };
-    advancedFieldsExpanded = false;
-    expenseCategoryFormError = '';
+    clearExpenseCategoryFieldErrors();
     showExpenseCategoryModal = true;
   }
 
@@ -223,86 +220,57 @@
       description: category.description || '',
       color: category.color || '#3498db',
       expense_type: category.expense_type || 'operational',
-      budget_amount: category.budget_amount || 0,
-      budget_period: category.budget_period || 'monthly',
-      is_tax_deductible: category.is_tax_deductible !== undefined ? category.is_tax_deductible : true,
-      cost_center: category.cost_center || 'main',
-      account_code: category.account_code || '',
-      parent_category_id: category.parent_category_id || null,
+      // Set defaults for fields not shown in form (will be sent to backend)
+      budget_amount: 0,
+      budget_period: 'monthly',
+      is_tax_deductible: true,
+      cost_center: 'main',
+      account_code: '',
+      parent_category_id: null,
       is_active: category.is_active !== undefined ? category.is_active : true,
-      requires_approval: category.requires_approval !== undefined ? category.requires_approval : false,
-      approval_threshold: category.approval_threshold || 0,
-      reporting_group: category.reporting_group || '',
-      sort_order: category.sort_order || 0
+      requires_approval: false,
+      approval_threshold: 0,
+      reporting_group: '',
+      sort_order: 0
     };
-    advancedFieldsExpanded = false;
-    expenseCategoryFormError = '';
+    clearExpenseCategoryFieldErrors();
     showExpenseCategoryModal = true;
   }
 
   async function handleExpenseCategorySave() {
-    expenseCategoryFormError = '';
+    clearExpenseCategoryFieldErrors();
     
-    // Validation
+    // Validation - only validate required fields
     if (!expenseCategoryForm.name || expenseCategoryForm.name.trim() === '') {
       expenseCategoryFormError = 'Category name is required';
       return;
     }
 
-    // Validate account code is required
-    if (!expenseCategoryForm.account_code || expenseCategoryForm.account_code.trim() === '') {
-      expenseCategoryFormError = 'Account code is required';
-      return;
-    }
-
-    // Validate account code is required
-    if (!expenseCategoryForm.account_code || expenseCategoryForm.account_code.trim() === '') {
-      expenseCategoryFormError = 'Account code is required';
-      return;
-    }
-
-    // Validate budget amount is integer
-    const budgetAmount = parseInt(expenseCategoryForm.budget_amount);
-    if (isNaN(budgetAmount) || budgetAmount < 0) {
-      expenseCategoryFormError = 'Budget amount must be a non-negative integer';
-      return;
-    }
-
-    expenseCategoryFormLoading = true;
-    
-    // Validate approval threshold is integer
-    const approvalThreshold = parseInt(expenseCategoryForm.approval_threshold) || 0;
-    if (isNaN(approvalThreshold) || approvalThreshold < 0) {
-      expenseCategoryFormError = 'Approval threshold must be a non-negative integer';
-      return;
-    }
-
-    // Validate sort order is integer
-    const sortOrder = parseInt(expenseCategoryForm.sort_order) || 0;
-    if (isNaN(sortOrder) || sortOrder < 0) {
-      expenseCategoryFormError = 'Sort order must be a non-negative integer';
+    if (!expenseCategoryForm.expense_type) {
+      expenseCategoryFormError = 'Expense type is required';
       return;
     }
 
     expenseCategoryFormLoading = true;
     
     try {
+      // Set defaults for fields not shown in form
       const formData = {
         name: expenseCategoryForm.name.trim(),
-        description: expenseCategoryForm.description.trim(),
+        description: expenseCategoryForm.description.trim() || '',
         color: expenseCategoryForm.color || '#3498db',
         expense_type: expenseCategoryForm.expense_type,
-        budget_amount: budgetAmount,
-        budget_period: expenseCategoryForm.budget_period,
-        is_tax_deductible: expenseCategoryForm.is_tax_deductible,
-        cost_center: expenseCategoryForm.cost_center || 'main',
-        account_code: expenseCategoryForm.account_code.trim() || '',
-        parent_category_id: expenseCategoryForm.parent_category_id || null,
+        budget_amount: 0,
+        budget_period: 'monthly',
+        is_tax_deductible: true,
+        cost_center: 'main',
+        account_code: '',
+        parent_category_id: null,
         is_active: expenseCategoryForm.is_active,
-        requires_approval: expenseCategoryForm.requires_approval,
-        approval_threshold: approvalThreshold,
-        reporting_group: expenseCategoryForm.reporting_group.trim(),
-        sort_order: sortOrder
+        requires_approval: false,
+        approval_threshold: 0,
+        reporting_group: '',
+        sort_order: 0
       };
 
       if (expenseCategoryModalMode === 'create') {
@@ -320,16 +288,8 @@
     }
   }
 
-  function confirmDeleteExpenseCategory(category) {
-    expenseCategoryToDelete = category;
-    expenseCategoryDeleteMode = 'soft';
-    expenseCategoryFormError = '';
-    showExpenseCategoryDeleteConfirm = true;
-  }
-
   function confirmPermanentDeleteExpenseCategory(category) {
     expenseCategoryToDelete = category;
-    expenseCategoryDeleteMode = 'permanent';
     expenseCategoryFormError = '';
     showExpenseCategoryDeleteConfirm = true;
   }
@@ -341,17 +301,12 @@
     expenseCategoryFormError = '';
     
     try {
-      if (expenseCategoryDeleteMode === 'permanent') {
-        await permanentlyDeleteExpenseCategory(expenseCategoryToDelete.id);
-      } else {
-        await deleteExpenseCategory(expenseCategoryToDelete.id);
-      }
+      await permanentlyDeleteExpenseCategory(expenseCategoryToDelete.id);
       showExpenseCategoryDeleteConfirm = false;
       expenseCategoryToDelete = null;
-      expenseCategoryDeleteMode = 'soft';
       clearExpenseCategoryError();
     } catch (error) {
-      expenseCategoryFormError = error.message || `Failed to ${expenseCategoryDeleteMode === 'permanent' ? 'permanently ' : ''}delete expense category`;
+      expenseCategoryFormError = error.message || 'Failed to delete expense category';
       // Don't close modal on error - user needs to see the error message
     } finally {
       expenseCategoryFormLoading = false;
@@ -810,10 +765,6 @@
                         <thead>
                           <tr>
                             <th>Category Name</th>
-                            <th>Account Code</th>
-                            <th>Expense Type</th>
-                            <th>Budget Amount</th>
-                            <th>Budget Period</th>
                             <th>Description</th>
                             <th>Status</th>
                             <th class="actions-col">Actions</th>
@@ -823,18 +774,6 @@
                           {#each $filteredExpenseCategories as category}
                             <tr>
                               <td>{category.name}</td>
-                              <td>{category.account_code || '-'}</td>
-                              <td>
-                                <span class="expense-type-badge expense-type-{category.expense_type}">
-                                  {category.expense_type.charAt(0).toUpperCase() + category.expense_type.slice(1)}
-                                </span>
-                              </td>
-                              <td>{formatCurrency(category.budget_amount)}</td>
-                              <td>
-                                <span class="budget-period-badge">
-                                  {category.budget_period.charAt(0).toUpperCase() + category.budget_period.slice(1)}
-                                </span>
-                              </td>
                               <td>{category.description || '-'}</td>
                               <td>
                                 <span class="status-badge {category.is_active ? 'active' : 'inactive'}">
@@ -846,14 +785,9 @@
                                 <button class="icon-btn" on:click={() => openEditExpenseCategoryModal(category)} title="Edit">
                                   ✏️
                                 </button>
-                                <button class="icon-btn" on:click={() => confirmDeleteExpenseCategory(category)} title="Delete">
+                                <button class="icon-btn danger" on:click={() => confirmPermanentDeleteExpenseCategory(category)} title="Delete">
                                   🗑️
                                 </button>
-                                {#if isUserAdmin}
-                                  <button class="icon-btn danger permanent-delete" on:click={() => confirmPermanentDeleteExpenseCategory(category)} title="Permanently Delete">
-                                    ⚠️
-                                  </button>
-                                {/if}
                               </td>
                             </tr>
                           {/each}
@@ -916,13 +850,18 @@
       class="modal-overlay" 
       role="button"
       tabindex="0"
-      on:click={() => showExpenseCategoryModal = false}
-      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (showExpenseCategoryModal = false)}
+      on:click={() => { clearExpenseCategoryFieldErrors(); showExpenseCategoryModal = false; }}
+      on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          clearExpenseCategoryFieldErrors();
+          showExpenseCategoryModal = false;
+        }
+      }}
     >
       <div class="modal-content expense-category-modal" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="modal-header">
           <h3>{expenseCategoryModalMode === 'create' ? 'Create New Expense Category' : 'Edit Expense Category'}</h3>
-          <button class="close-btn" on:click={() => showExpenseCategoryModal = false}>×</button>
+          <button class="close-btn" on:click={() => { clearExpenseCategoryFieldErrors(); showExpenseCategoryModal = false; }}>×</button>
         </div>
         <div class="modal-body">
           {#if expenseCategoryFormError}
@@ -955,19 +894,6 @@
           </div>
           
           <div class="form-group">
-            <label for="accountCode">Account Code *</label>
-            <input 
-              type="text" 
-              class="form-input {expenseCategoryFormError && !expenseCategoryForm.account_code ? 'error' : ''}" 
-              placeholder="e.g., EXP-5010"
-              id="accountCode"
-              bind:value={expenseCategoryForm.account_code}
-              disabled={expenseCategoryFormLoading}
-              required
-            />
-          </div>
-          
-          <div class="form-group">
             <label for="expenseType">Expense Type *</label>
             <select 
               class="form-input" 
@@ -985,175 +911,39 @@
           </div>
           
           <div class="form-group">
-            <label for="budgetPeriod">Budget Period *</label>
-            <select 
-              class="form-input" 
-              id="budgetPeriod"
-              bind:value={expenseCategoryForm.budget_period}
-              disabled={expenseCategoryFormLoading}
-              required
-            >
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="budgetAmount">Budget Amount (SYP) *</label>
+            <label for="color">Color</label>
             <input 
-              type="number" 
-              class="form-input" 
-              min="0" 
-              step="1"
-              placeholder="0"
-              id="budgetAmount"
-              bind:value={expenseCategoryForm.budget_amount}
+              type="color" 
+              class="form-input color-input" 
+              id="color"
+              bind:value={expenseCategoryForm.color}
               disabled={expenseCategoryFormLoading}
-              required
             />
           </div>
           
-          <!-- Advanced Fields Section (Collapsible) -->
-          <div class="advanced-fields-section">
-            <button 
-              type="button" 
-              class="advanced-fields-header"
-              on:click={() => advancedFieldsExpanded = !advancedFieldsExpanded}
-              aria-expanded={advancedFieldsExpanded}
-            >
-              <span class="section-title">Advanced Fields (Optional)</span>
-              <svg 
-                class="chevron {advancedFieldsExpanded ? 'expanded' : ''}" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                stroke-width="2"
-              >
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-            
-            {#if advancedFieldsExpanded}
-              <div class="advanced-fields-content">
-                <div class="form-group">
-                  <label for="color">Color</label>
-                  <input 
-                    type="color" 
-                    class="form-input color-input" 
-                    id="color"
-                    bind:value={expenseCategoryForm.color}
-                    disabled={expenseCategoryFormLoading}
-                  />
-                </div>
-                
-                <div class="form-group">
-                  <label for="costCenter">Cost Center</label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="e.g., main"
-                    id="costCenter"
-                    bind:value={expenseCategoryForm.cost_center}
-                    disabled={expenseCategoryFormLoading}
-                  />
-                </div>
-                
-                <div class="form-group">
-                  <label for="reportingGroup">Reporting Group</label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="Enter reporting group"
-                    id="reportingGroup"
-                    bind:value={expenseCategoryForm.reporting_group}
-                    disabled={expenseCategoryFormLoading}
-                  />
-                </div>
-                
-                <div class="form-group">
-                  <label for="approvalThreshold">Approval Threshold (SYP)</label>
-                  <input 
-                    type="number" 
-                    class="form-input" 
-                    min="0" 
-                    step="1"
-                    placeholder="0"
-                    id="approvalThreshold"
-                    bind:value={expenseCategoryForm.approval_threshold}
-                    disabled={expenseCategoryFormLoading}
-                  />
-                </div>
-                
-                <div class="form-group">
-                  <label for="sortOrder">Sort Order</label>
-                  <input 
-                    type="number" 
-                    class="form-input" 
-                    min="0" 
-                    step="1"
-                    placeholder="0"
-                    id="sortOrder"
-                    bind:value={expenseCategoryForm.sort_order}
-                    disabled={expenseCategoryFormLoading}
-                  />
-                </div>
-                
-                <div class="toggle-group">
-                  <div class="toggle-item">
-                    <label for="isTaxDeductible" class="toggle-label">
-                      <span>Tax Deductible</span>
-                      <div class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="isTaxDeductible"
-                          bind:checked={expenseCategoryForm.is_tax_deductible}
-                          class="toggle-input"
-                          disabled={expenseCategoryFormLoading}
-                        />
-                        <span class="toggle-slider"></span>
-                      </div>
-                    </label>
+          <div class="form-group">
+            <label for="status">Status</label>
+            <div class="toggle-group">
+              <div class="toggle-item">
+                <label for="status" class="toggle-label">
+                  <span>{expenseCategoryForm.is_active ? 'Active' : 'Inactive'}</span>
+                  <div class="toggle-switch">
+                    <input
+                      type="checkbox"
+                      id="status"
+                      bind:checked={expenseCategoryForm.is_active}
+                      class="toggle-input"
+                      disabled={expenseCategoryFormLoading}
+                    />
+                    <span class="toggle-slider"></span>
                   </div>
-                  
-                  <div class="toggle-item">
-                    <label for="isActive" class="toggle-label">
-                      <span>Active</span>
-                      <div class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="isActive"
-                          bind:checked={expenseCategoryForm.is_active}
-                          class="toggle-input"
-                          disabled={expenseCategoryFormLoading}
-                        />
-                        <span class="toggle-slider"></span>
-                      </div>
-                    </label>
-                  </div>
-                  
-                  <div class="toggle-item">
-                    <label for="requiresApproval" class="toggle-label">
-                      <span>Requires Approval</span>
-                      <div class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="requiresApproval"
-                          bind:checked={expenseCategoryForm.requires_approval}
-                          class="toggle-input"
-                          disabled={expenseCategoryFormLoading}
-                        />
-                        <span class="toggle-slider"></span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
+                </label>
               </div>
-            {/if}
+            </div>
           </div>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" on:click={() => showExpenseCategoryModal = false} disabled={expenseCategoryFormLoading}>
+          <button type="button" class="btn btn-secondary" on:click={() => { clearExpenseCategoryFieldErrors(); showExpenseCategoryModal = false; }} disabled={expenseCategoryFormLoading}>
             Cancel
           </button>
           <button type="button" class="btn btn-primary" disabled={expenseCategoryFormLoading} on:click={handleExpenseCategorySave}>
@@ -1175,36 +965,31 @@
       class="modal-overlay" 
       role="button"
       tabindex="0"
-      on:click={() => { if (!expenseCategoryFormError) { showExpenseCategoryDeleteConfirm = false; expenseCategoryToDelete = null; expenseCategoryDeleteMode = 'soft'; } }}
-      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !expenseCategoryFormError && (showExpenseCategoryDeleteConfirm = false)}
+      on:click={() => { if (!expenseCategoryFormError) { showExpenseCategoryDeleteConfirm = false; expenseCategoryToDelete = null; } }}
+      on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (!expenseCategoryFormError) {
+            showExpenseCategoryDeleteConfirm = false;
+          }
+        }
+      }}
     >
       <div class="confirmation-modal" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
-        <div class="modal-header {expenseCategoryDeleteMode === 'permanent' ? 'danger-header' : ''}">
-          <h3>{expenseCategoryDeleteMode === 'permanent' ? 'Permanently Delete Expense Category' : 'Delete Expense Category'}</h3>
+        <div class="modal-header danger-header">
+          <h3>Permanently Delete Expense Category</h3>
         </div>
         <div class="modal-content">
           {#if expenseCategoryFormError}
             <div class="alert alert-error">{expenseCategoryFormError}</div>
           {/if}
-          {#if expenseCategoryDeleteMode === 'permanent'}
-            <p>Are you sure you want to <strong>permanently delete</strong> the expense category <strong>{expenseCategoryToDelete?.name}</strong>?</p>
-            <p class="warning-text">⚠️ This action <strong>cannot be undone</strong>. The category will be permanently removed from the database.</p>
-          {:else}
-            <p>Are you sure you want to delete the expense category <strong>{expenseCategoryToDelete?.name}</strong>?</p>
-            <p class="info-text">This will deactivate the category. It can be restored later if needed.</p>
-          {/if}
+          <p>Are you sure you want to <strong>permanently delete</strong> the expense category <strong>{expenseCategoryToDelete?.name}</strong>?</p>
+          <p class="warning-text">⚠️ This action <strong>cannot be undone</strong>. The category will be permanently removed from the database.</p>
         </div>
         <div class="modal-actions">
-          {#if expenseCategoryDeleteMode === 'permanent'}
-            <button class="btn btn-danger" on:click={handleDeleteExpenseCategory} disabled={expenseCategoryFormLoading || expenseCategoryFormError}>
-              {expenseCategoryFormLoading ? 'Deleting...' : 'Permanently Delete'}
-            </button>
-          {:else}
-            <button class="btn btn-secondary" on:click={handleDeleteExpenseCategory} disabled={expenseCategoryFormLoading || expenseCategoryFormError}>
-              {expenseCategoryFormLoading ? 'Deleting...' : 'Delete'}
-            </button>
-          {/if}
-          <button class="btn btn-secondary" on:click={() => { showExpenseCategoryDeleteConfirm = false; expenseCategoryToDelete = null; expenseCategoryDeleteMode = 'soft'; expenseCategoryFormError = ''; }} disabled={expenseCategoryFormLoading}>Cancel</button>
+          <button class="btn btn-danger" on:click={handleDeleteExpenseCategory} disabled={expenseCategoryFormLoading || expenseCategoryFormError}>
+            {expenseCategoryFormLoading ? 'Deleting...' : 'Permanently Delete'}
+          </button>
+          <button class="btn btn-secondary" on:click={() => { showExpenseCategoryDeleteConfirm = false; expenseCategoryToDelete = null; expenseCategoryFormError = ''; }} disabled={expenseCategoryFormLoading}>Cancel</button>
         </div>
       </div>
     </div>
@@ -2244,6 +2029,13 @@
     font-size: 0.95rem;
   }
 
+  .toggle-status-text {
+    margin-left: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    opacity: 0.8;
+  }
+
   .toggle-switch {
     position: relative;
     width: 44px;
@@ -2402,6 +2194,14 @@
     background: rgba(34, 197, 94, 0.1);
     color: #22c55e;
     border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+
+  .field-error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    margin-top: -0.25rem;
+    display: block;
   }
 </style>
 

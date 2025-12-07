@@ -347,11 +347,11 @@ func (a *App) DeleteProcedure(id int, licenseKey string) error {
 // Expense Category Management Methods
 
 // CreateExpenseCategory creates a new expense category
-func (a *App) CreateExpenseCategory(category models.ExpenseCategoryForm, licenseKey string) (int64, error) {
+func (a *App) CreateExpenseCategory(category models.ExpenseCategoryForm, userID int, licenseKey string) (int64, error) {
 	if err := a.checkLicense(licenseKey); err != nil {
 		return 0, err
 	}
-	return a.expenseCategoryHandler.CreateExpenseCategory(category)
+	return a.expenseCategoryHandler.CreateExpenseCategory(category, userID)
 }
 
 // GetExpenseCategories returns all active expense categories
@@ -371,11 +371,11 @@ func (a *App) GetExpenseCategoriesPaginated(page, pageSize int, licenseKey strin
 }
 
 // UpdateExpenseCategory updates an expense category
-func (a *App) UpdateExpenseCategory(id int, category models.ExpenseCategoryForm, licenseKey string) error {
+func (a *App) UpdateExpenseCategory(id int, category models.ExpenseCategoryForm, userID int, licenseKey string) error {
 	if err := a.checkLicense(licenseKey); err != nil {
 		return err
 	}
-	return a.expenseCategoryHandler.UpdateExpenseCategory(id, category)
+	return a.expenseCategoryHandler.UpdateExpenseCategory(id, category, userID)
 }
 
 // DeleteExpenseCategory deletes an expense category (soft delete)

@@ -19,8 +19,8 @@ func NewExpenseCategoryHandler(db *sql.DB) *ExpenseCategoryHandler {
 }
 
 // CreateExpenseCategory inserts new expense category
-func (h *ExpenseCategoryHandler) CreateExpenseCategory(category models.ExpenseCategoryForm) (int64, error) {
-	log.Printf("[ExpenseCategoryHandler] CreateExpenseCategory called with name: %s", category.Name)
+func (h *ExpenseCategoryHandler) CreateExpenseCategory(category models.ExpenseCategoryForm, userID int) (int64, error) {
+	log.Printf("[ExpenseCategoryHandler] CreateExpenseCategory called with name: %s, userID: %d", category.Name, userID)
 
 	if category.Name == "" {
 		return 0, fmt.Errorf("category name is required")
@@ -38,21 +38,6 @@ func (h *ExpenseCategoryHandler) CreateExpenseCategory(category models.ExpenseCa
 		return 0, fmt.Errorf("invalid expense type: %s", category.ExpenseType)
 	}
 
-	// Validate budget period
-	validBudgetPeriods := map[string]bool{
-		"monthly":    true,
-		"quarterly":  true,
-		"yearly":     true,
-	}
-	if !validBudgetPeriods[category.BudgetPeriod] {
-		return 0, fmt.Errorf("invalid budget period: %s", category.BudgetPeriod)
-	}
-
-	// Validate budget amount (must be >= 0 and integer)
-	if category.BudgetAmount < 0 {
-		return 0, fmt.Errorf("budget amount must be greater than or equal to zero")
-	}
-
 	// Check if name already exists
 	var count int
 	err := h.db.QueryRow("SELECT COUNT(*) FROM expense_categories WHERE name = ?", category.Name).Scan(&count)
@@ -63,32 +48,35 @@ func (h *ExpenseCategoryHandler) CreateExpenseCategory(category models.ExpenseCa
 		return 0, fmt.Errorf("category name already exists")
 	}
 
-	// Set defaults for optional fields
+	// Set defaults for fields not shown in form
 	color := category.Color
 	if color == "" {
 		color = "#3498db"
 	}
-	costCenter := category.CostCenter
-	if costCenter == "" {
-		costCenter = "main"
-	}
+	costCenter := "main"
+	budgetAmount := 0
+	budgetPeriod := "monthly"
 	isActive := category.IsActive
-	if !isActive {
-		isActive = true // Default to active
-	}
+	isTaxDeductible := true
+	requiresApproval := false
+	approvalThreshold := 0
+	reportingGroup := ""
+	sortOrder := 0
+	var parentCategoryID *int = nil
+	var accountCode interface{} = nil // Set to NULL (not used anymore)
 	
 	query := `INSERT INTO expense_categories (
 	          name, description, color, expense_type, budget_amount, budget_period,
 	          is_tax_deductible, cost_center, account_code, parent_category_id,
-	          is_active, requires_approval, approval_threshold, reporting_group, sort_order
-	          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	          is_active, requires_approval, approval_threshold, reporting_group, sort_order, created_by
+	          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	
 	result, err := h.db.Exec(query,
 		category.Name, category.Description, color, category.ExpenseType,
-		category.BudgetAmount, category.BudgetPeriod,
-		category.IsTaxDeductible, costCenter, category.AccountCode, category.ParentCategoryID,
-		isActive, category.RequiresApproval, category.ApprovalThreshold,
-		category.ReportingGroup, category.SortOrder)
+		budgetAmount, budgetPeriod,
+		isTaxDeductible, costCenter, accountCode, parentCategoryID,
+		isActive, requiresApproval, approvalThreshold,
+		reportingGroup, sortOrder, userID)
 	if err != nil {
 		log.Printf("[ExpenseCategoryHandler] Database error: %v", err)
 		return 0, err
@@ -103,14 +91,13 @@ func (h *ExpenseCategoryHandler) CreateExpenseCategory(category models.ExpenseCa
 	return id, nil
 }
 
-// GetExpenseCategories returns all active expense categories ordered by name
+// GetExpenseCategories returns all expense categories ordered by name
 func (h *ExpenseCategoryHandler) GetExpenseCategories() ([]models.ExpenseCategory, error) {
 	query := `SELECT id, name, description, color, budget_amount, budget_period, expense_type, 
 	          is_tax_deductible, cost_center, account_code, parent_category_id, is_active, 
 	          requires_approval, approval_threshold, reporting_group, sort_order, 
 	          created_by, updated_by, created_at, updated_at 
 	          FROM expense_categories 
-	          WHERE is_active = 1 
 	          ORDER BY name`
 
 	rows, err := h.db.Query(query)
@@ -125,11 +112,12 @@ func (h *ExpenseCategoryHandler) GetExpenseCategories() ([]models.ExpenseCategor
 		var parentCategoryID sql.NullInt64
 		var createdBy sql.NullInt64
 		var updatedBy sql.NullInt64
+		var accountCode sql.NullString
 
 		err := rows.Scan(
 			&category.ID, &category.Name, &category.Description, &category.Color,
 			&category.BudgetAmount, &category.BudgetPeriod, &category.ExpenseType,
-			&category.IsTaxDeductible, &category.CostCenter, &category.AccountCode,
+			&category.IsTaxDeductible, &category.CostCenter, &accountCode,
 			&parentCategoryID, &category.IsActive, &category.RequiresApproval,
 			&category.ApprovalThreshold, &category.ReportingGroup, &category.SortOrder,
 			&createdBy, &updatedBy, &category.CreatedAt, &category.UpdatedAt,
@@ -138,6 +126,11 @@ func (h *ExpenseCategoryHandler) GetExpenseCategories() ([]models.ExpenseCategor
 			return nil, err
 		}
 
+		if accountCode.Valid {
+			category.AccountCode = accountCode.String
+		} else {
+			category.AccountCode = ""
+		}
 		if parentCategoryID.Valid {
 			val := int(parentCategoryID.Int64)
 			category.ParentCategoryID = &val
@@ -168,7 +161,7 @@ func (h *ExpenseCategoryHandler) GetExpenseCategoriesPaginated(page, pageSize in
 
 	// Get total count
 	var totalCount int
-	if err := h.db.QueryRow(`SELECT COUNT(*) FROM expense_categories WHERE is_active = 1`).Scan(&totalCount); err != nil {
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM expense_categories`).Scan(&totalCount); err != nil {
 		return nil, fmt.Errorf("failed to count expense categories: %v", err)
 	}
 
@@ -187,7 +180,6 @@ func (h *ExpenseCategoryHandler) GetExpenseCategoriesPaginated(page, pageSize in
 	          requires_approval, approval_threshold, reporting_group, sort_order, 
 	          created_by, updated_by, created_at, updated_at 
 	          FROM expense_categories 
-	          WHERE is_active = 1 
 	          ORDER BY name 
 	          LIMIT ? OFFSET ?`
 
@@ -203,11 +195,12 @@ func (h *ExpenseCategoryHandler) GetExpenseCategoriesPaginated(page, pageSize in
 		var parentCategoryID sql.NullInt64
 		var createdBy sql.NullInt64
 		var updatedBy sql.NullInt64
+		var accountCode sql.NullString
 
 		err := rows.Scan(
 			&category.ID, &category.Name, &category.Description, &category.Color,
 			&category.BudgetAmount, &category.BudgetPeriod, &category.ExpenseType,
-			&category.IsTaxDeductible, &category.CostCenter, &category.AccountCode,
+			&category.IsTaxDeductible, &category.CostCenter, &accountCode,
 			&parentCategoryID, &category.IsActive, &category.RequiresApproval,
 			&category.ApprovalThreshold, &category.ReportingGroup, &category.SortOrder,
 			&createdBy, &updatedBy, &category.CreatedAt, &category.UpdatedAt,
@@ -216,6 +209,11 @@ func (h *ExpenseCategoryHandler) GetExpenseCategoriesPaginated(page, pageSize in
 			return nil, fmt.Errorf("failed to scan expense category: %v", err)
 		}
 
+		if accountCode.Valid {
+			category.AccountCode = accountCode.String
+		} else {
+			category.AccountCode = ""
+		}
 		if parentCategoryID.Valid {
 			val := int(parentCategoryID.Int64)
 			category.ParentCategoryID = &val
@@ -246,7 +244,7 @@ func (h *ExpenseCategoryHandler) GetExpenseCategoriesPaginated(page, pageSize in
 }
 
 // UpdateExpenseCategory updates expense category by id
-func (h *ExpenseCategoryHandler) UpdateExpenseCategory(id int, category models.ExpenseCategoryForm) error {
+func (h *ExpenseCategoryHandler) UpdateExpenseCategory(id int, category models.ExpenseCategoryForm, userID int) error {
 	if category.Name == "" {
 		return fmt.Errorf("category name is required")
 	}
@@ -263,20 +261,6 @@ func (h *ExpenseCategoryHandler) UpdateExpenseCategory(id int, category models.E
 		return fmt.Errorf("invalid expense type: %s", category.ExpenseType)
 	}
 
-	// Validate budget period
-	validBudgetPeriods := map[string]bool{
-		"monthly":   true,
-		"quarterly": true,
-		"yearly":    true,
-	}
-	if !validBudgetPeriods[category.BudgetPeriod] {
-		return fmt.Errorf("invalid budget period: %s", category.BudgetPeriod)
-	}
-
-	// Validate budget amount
-	if category.BudgetAmount < 0 {
-		return fmt.Errorf("budget amount must be greater than or equal to zero")
-	}
 
 	// Check if name already exists for another category
 	var existingID int
@@ -288,28 +272,35 @@ func (h *ExpenseCategoryHandler) UpdateExpenseCategory(id int, category models.E
 		return fmt.Errorf("failed to check category name: %v", err)
 	}
 
-	// Set defaults for optional fields
+	// Set defaults for fields not shown in form
 	color := category.Color
 	if color == "" {
 		color = "#3498db"
 	}
-	costCenter := category.CostCenter
-	if costCenter == "" {
-		costCenter = "main"
-	}
+	costCenter := "main"
+	budgetAmount := 0
+	budgetPeriod := "monthly"
+	isActive := category.IsActive
+	isTaxDeductible := true
+	requiresApproval := false
+	approvalThreshold := 0
+	reportingGroup := ""
+	sortOrder := 0
+	var parentCategoryID *int = nil
+	var accountCode interface{} = nil // Set to NULL (not used anymore)
 	
 	query := `UPDATE expense_categories 
 	          SET name = ?, description = ?, color = ?, expense_type = ?, budget_amount = ?, budget_period = ?,
 	              is_tax_deductible = ?, cost_center = ?, account_code = ?, parent_category_id = ?,
 	              is_active = ?, requires_approval = ?, approval_threshold = ?, reporting_group = ?, sort_order = ?,
-	              updated_at = CURRENT_TIMESTAMP 
+	              updated_by = ?, updated_at = CURRENT_TIMESTAMP 
 	          WHERE id = ?`
 	_, err = h.db.Exec(query,
 		category.Name, category.Description, color, category.ExpenseType,
-		category.BudgetAmount, category.BudgetPeriod,
-		category.IsTaxDeductible, costCenter, category.AccountCode, category.ParentCategoryID,
-		category.IsActive, category.RequiresApproval, category.ApprovalThreshold,
-		category.ReportingGroup, category.SortOrder, id)
+		budgetAmount, budgetPeriod,
+		isTaxDeductible, costCenter, accountCode, parentCategoryID,
+		isActive, requiresApproval, approvalThreshold,
+		reportingGroup, sortOrder, userID, id)
 	return err
 }
 

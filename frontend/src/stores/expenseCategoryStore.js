@@ -8,6 +8,7 @@ import {
     PermanentlyDeleteExpenseCategory 
 } from '../../wailsjs/go/main/App.js';
 import { currentLicenseKey } from './settingsStore.js';
+import { currentUser } from './authStore.js';
 
 // Store state
 export const expenseCategories = writable([]);
@@ -100,7 +101,14 @@ export async function createExpenseCategory(category) {
     
     try {
         const licenseKey = getLicenseKey();
-        const id = await CreateExpenseCategory(category, licenseKey);
+        const user = get(currentUser);
+        const userID = user ? user.id : parseInt(localStorage.getItem('dentist_user_id') || '0');
+        
+        if (!userID || userID === 0) {
+            throw new Error('User not authenticated');
+        }
+        
+        const id = await CreateExpenseCategory(category, userID, licenseKey);
         
         // Reload categories
         await loadExpenseCategoriesPaginated(get(expenseCategoriesCurrentPage));
@@ -124,7 +132,14 @@ export async function updateExpenseCategory(id, category) {
     
     try {
         const licenseKey = getLicenseKey();
-        await UpdateExpenseCategory(id, category, licenseKey);
+        const user = get(currentUser);
+        const userID = user ? user.id : parseInt(localStorage.getItem('dentist_user_id') || '0');
+        
+        if (!userID || userID === 0) {
+            throw new Error('User not authenticated');
+        }
+        
+        await UpdateExpenseCategory(id, category, userID, licenseKey);
         
         // Reload categories
         await loadExpenseCategoriesPaginated(get(expenseCategoriesCurrentPage));
