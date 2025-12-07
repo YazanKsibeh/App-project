@@ -1,0 +1,95 @@
+# Database files (contains sensitive data)
+*.db
+*.sqlite
+*.sqlite3
+
+# Patient data (contains sensitive information)
+patient_data/
+
+# Build artifacts
+build/bin/
+build/*.exe
+build/*.app
+build/*.dmg
+build/*.deb
+build/*.rpm
+build/*.pkg
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+frontend/package-lock.json.md5
+
+# Wails generated files
+frontend/wailsjs/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Go workspace files
+go.work
+go.work.sum
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# Environment and configuration files
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.cert
+*.crt
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# Coverage reports
+coverage/
+*.cover
+*.coverprofile
+
+# Dependency directories
+vendor/
+
+# Test files (if you want to ignore test binaries)
+# Uncomment if needed:
+# *_test.go

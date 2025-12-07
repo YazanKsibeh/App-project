@@ -1,0 +1,67 @@
+/* Global color variables for light theme */
+:root {
+  --color-bg: #f7f9fc;
+  --color-bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --color-text: #23293a;
+  --color-text-contrast: #fff;
+  --color-navbar: #fff;
+  --color-card: #fff;
+  --color-panel: #f1f3fa;
+  --color-accent: #667eea;
+  --color-accent-gradient: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  --color-danger: #e57373;
+  --color-border: #e3e8f0;
+  --color-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Dark theme overrides */
+body[data-theme="dark"] {
+  --color-bg: #23293a;
+  --color-bg-gradient: linear-gradient(135deg, #23293a 0%, #2d3448 100%);
+  --color-text: #f7f9fc;
+  --color-text-contrast: #fff;
+  --color-navbar: #222b45;
+  --color-card: #2d3448;
+  --color-panel: #23293a;
+  --color-accent: #667eea;
+  --color-accent-gradient: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  --color-danger: #e57373;
+  --color-border: #2d3448;
+  --color-shadow: 0 2px 16px rgba(0,0,0,0.18);
+}
+
+html {
+    background-color: var(--color-bg);
+    text-align: center;
+    color: var(--color-text);
+    overflow-x: hidden;
+    width: 100%;
+}
+
+body {
+    margin: 0;
+    color: var(--color-text);
+    background: var(--color-bg);
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@font-face {
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 400;
+    src: local(""),
+    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+}
+
+#app {
+    height: 100vh;
+    text-align: center;
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
