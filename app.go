@@ -18,12 +18,14 @@ type App struct {
 	sessionHandler        *handlers.SessionHandler
 	invoiceHandler        *handlers.InvoiceHandler
 	expenseCategoryHandler *handlers.ExpenseCategoryHandler
+	workTypeHandler       *handlers.WorkTypeHandler
+	colorShadeHandler     *handlers.ColorShadeHandler
 	licenseService        *handlers.LicenseService
 	authHandler           *handlers.AuthHandler
 }
 
 // NewApp creates a new App application struct
-func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, authHandler *handlers.AuthHandler) *App {
+func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, workTypeHandler *handlers.WorkTypeHandler, colorShadeHandler *handlers.ColorShadeHandler, authHandler *handlers.AuthHandler) *App {
 	return &App{
 		patientHandler:        patientHandler,
 		appointmentHandler:    appointmentHandler,
@@ -32,6 +34,8 @@ func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handler
 		sessionHandler:        sessionHandler,
 		invoiceHandler:        invoiceHandler,
 		expenseCategoryHandler: expenseCategoryHandler,
+		workTypeHandler:       workTypeHandler,
+		colorShadeHandler:     colorShadeHandler,
 		licenseService:        handlers.NewLicenseService(),
 		authHandler:           authHandler,
 	}
@@ -506,4 +510,72 @@ func (a *App) GetInvoicePayments(page int, pageSize int, licenseKey string) (*mo
 		return nil, err
 	}
 	return a.paymentHandler.GetInvoicePayments(page, pageSize)
+}
+
+// Work Type Management Methods
+
+// CreateWorkType creates a new work type
+func (a *App) CreateWorkType(workType models.WorkTypeForm, userID int, licenseKey string) (int64, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return 0, err
+	}
+	return a.workTypeHandler.CreateWorkType(workType, userID)
+}
+
+// GetWorkTypesPaginated returns paginated work types
+func (a *App) GetWorkTypesPaginated(page, pageSize int, licenseKey string) (*models.WorkTypesResponse, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.workTypeHandler.GetWorkTypesPaginated(page, pageSize)
+}
+
+// UpdateWorkType updates a work type
+func (a *App) UpdateWorkType(id int, workType models.WorkTypeForm, userID int, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.workTypeHandler.UpdateWorkType(id, workType, userID)
+}
+
+// DeleteWorkType deletes a work type
+func (a *App) DeleteWorkType(id int, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.workTypeHandler.DeleteWorkType(id)
+}
+
+// Color Shade Management Methods
+
+// CreateColorShade creates a new color shade
+func (a *App) CreateColorShade(shade models.ColorShadeForm, userID int, licenseKey string) (int64, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return 0, err
+	}
+	return a.colorShadeHandler.CreateColorShade(shade, userID)
+}
+
+// GetColorShadesPaginated returns paginated color shades
+func (a *App) GetColorShadesPaginated(page, pageSize int, licenseKey string) (*models.ColorShadesResponse, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.colorShadeHandler.GetColorShadesPaginated(page, pageSize)
+}
+
+// UpdateColorShade updates a color shade
+func (a *App) UpdateColorShade(id int, shade models.ColorShadeForm, userID int, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.colorShadeHandler.UpdateColorShade(id, shade, userID)
+}
+
+// DeleteColorShade deletes a color shade
+func (a *App) DeleteColorShade(id int, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.colorShadeHandler.DeleteColorShade(id)
 }

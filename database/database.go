@@ -332,6 +332,151 @@ func InitDB() (*sql.DB, error) {
 	_, _ = db.Exec(`ALTER TABLE expense_payments ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
 	_, _ = db.Exec(`ALTER TABLE expense_payments ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
 
+	// Create dental_labs table
+	createDentalLabsTable := `
+	CREATE TABLE IF NOT EXISTS dental_labs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		code TEXT UNIQUE,
+		contact_person TEXT,
+		phone_primary TEXT NOT NULL,
+		phone_secondary TEXT,
+		email TEXT,
+		specialties TEXT,
+		is_active BOOLEAN DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	_, err = db.Exec(createDentalLabsTable)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migration attempts for dental_labs table (in case table exists but columns are missing)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN name TEXT NOT NULL UNIQUE;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN code TEXT UNIQUE;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN contact_person TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN phone_primary TEXT NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN phone_secondary TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN email TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN specialties TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN is_active BOOLEAN DEFAULT 1;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN notes TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+	_, _ = db.Exec(`ALTER TABLE dental_labs ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+
+	// Create color_shades table
+	createColorShadesTable := `
+	CREATE TABLE IF NOT EXISTS color_shades (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		description TEXT,
+		hex_color TEXT,
+		is_active BOOLEAN DEFAULT 1,
+		sort_order INTEGER DEFAULT 0,
+		created_by INTEGER,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (created_by) REFERENCES users(id)
+	);`
+
+	_, err = db.Exec(createColorShadesTable)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migration attempts for color_shades table (in case table exists but columns are missing)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN name TEXT NOT NULL UNIQUE;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN description TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN hex_color TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN is_active BOOLEAN DEFAULT 1;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN sort_order INTEGER DEFAULT 0;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN created_by INTEGER;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+	_, _ = db.Exec(`ALTER TABLE color_shades ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+
+	// Create work_types table
+	createWorkTypesTable := `
+	CREATE TABLE IF NOT EXISTS work_types (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		description TEXT,
+		sort_order INTEGER DEFAULT 0,
+		created_by INTEGER,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (created_by) REFERENCES users(id)
+	);`
+
+	_, err = db.Exec(createWorkTypesTable)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migration attempts for work_types table (in case table exists but columns are missing)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN name TEXT NOT NULL UNIQUE;`)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN description TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN sort_order INTEGER DEFAULT 0;`)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN created_by INTEGER;`)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+	_, _ = db.Exec(`ALTER TABLE work_types ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+
+	// Create lab_orders table
+	createLabOrdersTable := `
+	CREATE TABLE IF NOT EXISTS lab_orders (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		order_number TEXT UNIQUE NOT NULL,
+		patient_id INTEGER NOT NULL,
+		lab_id INTEGER NOT NULL,
+		created_by INTEGER NOT NULL,
+		work_type_id INTEGER NOT NULL,
+		description TEXT,
+		upper_left TEXT,
+		upper_right TEXT,
+		lower_left TEXT,
+		lower_right TEXT,
+		quantity INTEGER DEFAULT 1,
+		color_shade_id INTEGER,
+		lab_cost INTEGER,
+		order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+		status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'in_progress', 'ready', 'delivered', 'cancelled')),
+		notes TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (patient_id) REFERENCES patients(id),
+		FOREIGN KEY (lab_id) REFERENCES dental_labs(id),
+		FOREIGN KEY (created_by) REFERENCES users(id),
+		FOREIGN KEY (work_type_id) REFERENCES work_types(id),
+		FOREIGN KEY (color_shade_id) REFERENCES color_shades(id)
+	);`
+
+	_, err = db.Exec(createLabOrdersTable)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migration attempts for lab_orders table (in case table exists but columns are missing)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN order_number TEXT UNIQUE NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN patient_id INTEGER NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN lab_id INTEGER NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN created_by INTEGER NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN work_type_id INTEGER NOT NULL;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN description TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN upper_left TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN upper_right TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN lower_left TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN lower_right TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN quantity INTEGER DEFAULT 1;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN color_shade_id INTEGER;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN lab_cost INTEGER;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN order_date DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN status TEXT DEFAULT 'draft';`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN notes TEXT;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+
 	// Create patient_data directory if it doesn't exist
 	err = os.MkdirAll("patient_data", 0755)
 	if err != nil {

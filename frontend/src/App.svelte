@@ -7,6 +7,7 @@
   import Payments from './components/Payments.svelte';
   import Financials from './components/Financials.svelte';
   import Configuration from './components/Configuration.svelte';
+  import LabOrders from './components/LabOrders.svelte';
   import UserProfileModal from './components/UserProfileModal.svelte';
   import LicenseGate from './components/LicenseGate.svelte';
   import Login from './components/Login.svelte';
@@ -15,7 +16,7 @@
   import { isAuthenticated, checkAuth } from './stores/authStore.js';
   import { onMount } from 'svelte';
 
-  let currentPage = 'patients'; // 'patients', 'appointments', 'payments', 'calendar', 'sessions', 'financials', 'configuration'
+  let currentPage = 'patients'; // 'patients', 'appointments', 'payments', 'calendar', 'sessions', 'financials', 'configuration', 'lab-orders'
   let showUserProfile = false;
   let showLicenseGate = true;
   let licenseValidated = false;
@@ -116,6 +117,7 @@
       <button class:active={currentPage === 'sessions'} on:click={() => goTo('sessions')}>Sessions</button>
       <button class:active={currentPage === 'payments'} on:click={() => goTo('payments')}>Payments</button>
       <button class:active={currentPage === 'financials'} on:click={() => goTo('financials')}>Financials</button>
+      <button class:active={currentPage === 'lab-orders'} on:click={() => goTo('lab-orders')}>Lab Orders</button>
       <button class:active={currentPage === 'configuration'} on:click={() => goTo('configuration')}>Configuration</button>
     </div>
     <div class="nav-actions">
@@ -166,6 +168,8 @@
       <Sessions />
     {:else if currentPage === 'financials'}
       <Financials />
+    {:else if currentPage === 'lab-orders'}
+      <LabOrders />
     {:else if currentPage === 'configuration'}
       <Configuration />
     {/if}

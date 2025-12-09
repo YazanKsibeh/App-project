@@ -19,8 +19,34 @@
     updateProcedure,
     deleteProcedure
   } from '../stores/procedureStore.js';
+  import {
+    filteredWorkTypes,
+    workTypesLoading,
+    workTypesError,
+    workTypesSuccess,
+    workTypeSearch,
+    workTypesCurrentPage,
+    workTypesTotalPages,
+    loadWorkTypesPaginated,
+    createWorkType,
+    updateWorkType,
+    deleteWorkType
+  } from '../stores/workTypeStore.js';
+  import {
+    filteredColorShades,
+    colorShadesLoading,
+    colorShadesError,
+    colorShadesSuccess,
+    colorShadeSearch,
+    colorShadesCurrentPage,
+    colorShadesTotalPages,
+    loadColorShadesPaginated,
+    createColorShade,
+    updateColorShade,
+    deleteColorShade
+  } from '../stores/colorShadeStore.js';
 
-  let selectedSection = 'license'; // 'license', 'users', 'procedures', 'danger'
+  let selectedSection = 'license'; // 'license', 'users', 'procedures', 'work-types', 'color-shades', 'danger'
   let showLicenseInput = false;
   let newKey = '';
   let validatingLicense = false;
@@ -36,6 +62,24 @@
   let procedureFormLoading = false;
   let showProcedureDeleteConfirm = false;
   let procedureToDelete = null;
+
+  // Work Type modal state
+  let showWorkTypeModal = false;
+  let workTypeModalMode = 'create';
+  let workTypeForm = { id: null, name: '', description: '' };
+  let workTypeFormError = '';
+  let workTypeFormLoading = false;
+  let showWorkTypeDeleteConfirm = false;
+  let workTypeToDelete = null;
+
+  // Color Shade modal state
+  let showColorShadeModal = false;
+  let colorShadeModalMode = 'create';
+  let colorShadeForm = { id: null, name: '', description: '', hex_color: '#F1ECE4', is_active: true };
+  let colorShadeFormError = '';
+  let colorShadeFormLoading = false;
+  let showColorShadeDeleteConfirm = false;
+  let colorShadeToDelete = null;
 
   onMount(() => {
     selectedSection = 'license';
@@ -70,6 +114,16 @@
       showProcedureDeleteConfirm = false;
       procedureFormError = '';
     }
+    if (section !== 'work-types') {
+      showWorkTypeModal = false;
+      showWorkTypeDeleteConfirm = false;
+      workTypeFormError = '';
+    }
+    if (section !== 'color-shades') {
+      showColorShadeModal = false;
+      showColorShadeDeleteConfirm = false;
+      colorShadeFormError = '';
+    }
     
     if (section === 'procedures') {
       // Load paginated procedures when section is selected
@@ -77,6 +131,14 @@
         // console.log('[Configuration] loadProceduresPaginated() completed');
       }).catch((err) => {
         console.error('[Configuration] loadProceduresPaginated() failed:', err);
+      });
+    } else if (section === 'work-types') {
+      loadWorkTypesPaginated(1).catch((err) => {
+        console.error('[Configuration] loadWorkTypesPaginated() failed:', err);
+      });
+    } else if (section === 'color-shades') {
+      loadColorShadesPaginated(1).catch((err) => {
+        console.error('[Configuration] loadColorShadesPaginated() failed:', err);
       });
     }
     
@@ -261,6 +323,168 @@
       loadProceduresPaginated(current + 1);
     }
   }
+
+  // Work Type handlers
+  function openCreateWorkTypeModal() {
+    workTypeModalMode = 'create';
+    workTypeForm = { id: null, name: '', description: '' };
+    workTypeFormError = '';
+    showWorkTypeModal = true;
+  }
+
+  function openEditWorkTypeModal(workType) {
+    workTypeModalMode = 'edit';
+    workTypeForm = { id: workType.id, name: workType.name, description: workType.description || '' };
+    workTypeFormError = '';
+    showWorkTypeModal = true;
+  }
+
+  async function handleWorkTypeSave() {
+    workTypeFormError = '';
+    
+    const trimmedName = workTypeForm.name.trim();
+    if (!trimmedName) {
+      workTypeFormError = 'Work type name is required';
+      return;
+    }
+    
+    workTypeFormLoading = true;
+    try {
+      if (workTypeModalMode === 'create') {
+        await createWorkType({
+          name: trimmedName,
+          description: workTypeForm.description.trim() || ''
+        });
+      } else {
+        await updateWorkType(workTypeForm.id, {
+          name: trimmedName,
+          description: workTypeForm.description.trim() || ''
+        });
+      }
+      showWorkTypeModal = false;
+      workTypeForm = { id: null, name: '', description: '' };
+      workTypeFormError = '';
+    } catch (err) {
+      workTypeFormError = err.message || 'Failed to save work type';
+    } finally {
+      workTypeFormLoading = false;
+    }
+  }
+
+  function confirmDeleteWorkType(workType) {
+    workTypeToDelete = workType;
+    showWorkTypeDeleteConfirm = true;
+  }
+
+  async function handleDeleteWorkType() {
+    if (!workTypeToDelete) return;
+    const success = await deleteWorkType(workTypeToDelete.id);
+    if (success) {
+      showWorkTypeDeleteConfirm = false;
+      workTypeToDelete = null;
+    }
+  }
+
+  function previousWorkTypes() {
+    const current = $workTypesCurrentPage;
+    if (current > 1) {
+      loadWorkTypesPaginated(current - 1);
+    }
+  }
+
+  function nextWorkTypes() {
+    const current = $workTypesCurrentPage;
+    const total = $workTypesTotalPages;
+    if (current < total) {
+      loadWorkTypesPaginated(current + 1);
+    }
+  }
+
+  // Color Shade handlers
+  function openCreateColorShadeModal() {
+    colorShadeModalMode = 'create';
+    colorShadeForm = { id: null, name: '', description: '', hex_color: '#F1ECE4', is_active: true };
+    colorShadeFormError = '';
+    showColorShadeModal = true;
+  }
+
+  function openEditColorShadeModal(shade) {
+    colorShadeModalMode = 'edit';
+    colorShadeForm = { 
+      id: shade.id, 
+      name: shade.name, 
+      description: shade.description || '', 
+      hex_color: shade.hex_color || '#F1ECE4',
+      is_active: shade.is_active !== undefined ? shade.is_active : true
+    };
+    colorShadeFormError = '';
+    showColorShadeModal = true;
+  }
+
+  async function handleColorShadeSave() {
+    colorShadeFormError = '';
+    
+    const trimmedName = colorShadeForm.name.trim();
+    if (!trimmedName) {
+      colorShadeFormError = 'Color shade name is required';
+      return;
+    }
+    
+    colorShadeFormLoading = true;
+    try {
+      if (colorShadeModalMode === 'create') {
+        await createColorShade({
+          name: trimmedName,
+          description: colorShadeForm.description.trim() || '',
+          hex_color: colorShadeForm.hex_color || '#F1ECE4',
+          is_active: colorShadeForm.is_active
+        });
+      } else {
+        await updateColorShade(colorShadeForm.id, {
+          name: trimmedName,
+          description: colorShadeForm.description.trim() || '',
+          hex_color: colorShadeForm.hex_color || '#F1ECE4',
+          is_active: colorShadeForm.is_active
+        });
+      }
+      showColorShadeModal = false;
+      colorShadeForm = { id: null, name: '', description: '', hex_color: '#F1ECE4', is_active: true };
+      colorShadeFormError = '';
+    } catch (err) {
+      colorShadeFormError = err.message || 'Failed to save color shade';
+    } finally {
+      colorShadeFormLoading = false;
+    }
+  }
+
+  function confirmDeleteColorShade(shade) {
+    colorShadeToDelete = shade;
+    showColorShadeDeleteConfirm = true;
+  }
+
+  async function handleDeleteColorShade() {
+    if (!colorShadeToDelete) return;
+    const success = await deleteColorShade(colorShadeToDelete.id);
+    if (success) {
+      showColorShadeDeleteConfirm = false;
+      colorShadeToDelete = null;
+    }
+  }
+
+  function previousColorShades() {
+    const current = $colorShadesCurrentPage;
+    if (current > 1) {
+      loadColorShadesPaginated(current - 1);
+    }
+  }
+
+  function nextColorShades() {
+    const current = $colorShadesCurrentPage;
+    const total = $colorShadesTotalPages;
+    if (current < total) {
+      loadColorShadesPaginated(current + 1);
+    }
+  }
 </script>
 
 <div class="configuration">
@@ -312,6 +536,32 @@
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
           <span>Dental Procedures</span>
+        </button>
+        
+        <button 
+          class="nav-item" 
+          class:active={selectedSection === 'work-types'}
+          on:click={() => selectSection('work-types')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span>Work Types</span>
+        </button>
+        
+        <button 
+          class="nav-item" 
+          class:active={selectedSection === 'color-shades'}
+          on:click={() => selectSection('color-shades')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+          </svg>
+          <span>Color Shades</span>
         </button>
         
         <button 
@@ -543,6 +793,214 @@
         </div>
       {/if}
 
+      <!-- Work Types Section -->
+      {#if selectedSection === 'work-types'}
+        <div class="section-content">
+          <div class="section-header">
+            <h1>Work Types</h1>
+            <p class="section-description">Define your lab work types for orders.</p>
+          </div>
+
+          <div class="content-cards">
+            <div class="action-card">
+              <div class="procedures-toolbar">
+                <div class="search-group">
+                  <input
+                    type="text"
+                    class="form-input search-input"
+                    placeholder="Search work types..."
+                    bind:value={$workTypeSearch}
+                  />
+                </div>
+                <button class="btn btn-primary" on:click={openCreateWorkTypeModal}>
+                  ➕ Create New Work Type
+                </button>
+              </div>
+
+              {#if $workTypesError}
+                <div class="alert alert-error">
+                  {$workTypesError}
+                </div>
+              {/if}
+              {#if $workTypesSuccess}
+                <div class="alert alert-success">
+                  {$workTypesSuccess}
+                </div>
+              {/if}
+
+              <div class="procedure-list">
+                {#if $workTypesLoading}
+                  <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading work types...</p>
+                  </div>
+                {:else if $filteredWorkTypes.length === 0}
+                  <div class="empty-state">
+                    <p>No work types defined yet. Create your first work type.</p>
+                  </div>
+                {:else}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th class="actions-col">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each $filteredWorkTypes as workType}
+                        <tr>
+                          <td>{workType.name}</td>
+                          <td>{workType.description || '-'}</td>
+                          <td class="actions-col">
+                            <button class="icon-btn" on:click={() => openEditWorkTypeModal(workType)} title="Edit">
+                              ✏️
+                            </button>
+                            <button class="icon-btn danger" on:click={() => confirmDeleteWorkType(workType)} title="Delete">
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  
+                  {#if $workTypesTotalPages > 1}
+                    <div class="pagination">
+                      <button 
+                        class="page-btn" 
+                        disabled={$workTypesCurrentPage === 1 || $workTypesLoading} 
+                        on:click={previousWorkTypes}
+                      >
+                        Previous
+                      </button>
+                      <span class="page-info">
+                        Page {$workTypesCurrentPage} of {$workTypesTotalPages}
+                      </span>
+                      <button 
+                        class="page-btn" 
+                        disabled={$workTypesCurrentPage >= $workTypesTotalPages || $workTypesLoading} 
+                        on:click={nextWorkTypes}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Color Shades Section -->
+      {#if selectedSection === 'color-shades'}
+        <div class="section-content">
+          <div class="section-header">
+            <h1>Color Shades</h1>
+            <p class="section-description">Define tooth color shades for lab orders.</p>
+          </div>
+
+          <div class="content-cards">
+            <div class="action-card">
+              <div class="procedures-toolbar">
+                <div class="search-group">
+                  <input
+                    type="text"
+                    class="form-input search-input"
+                    placeholder="Search color shades..."
+                    bind:value={$colorShadeSearch}
+                  />
+                </div>
+                <button class="btn btn-primary" on:click={openCreateColorShadeModal}>
+                  ➕ Create New Color Shade
+                </button>
+              </div>
+
+              {#if $colorShadesError}
+                <div class="alert alert-error">
+                  {$colorShadesError}
+                </div>
+              {/if}
+              {#if $colorShadesSuccess}
+                <div class="alert alert-success">
+                  {$colorShadesSuccess}
+                </div>
+              {/if}
+
+              <div class="procedure-list">
+                {#if $colorShadesLoading}
+                  <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading color shades...</p>
+                  </div>
+                {:else if $filteredColorShades.length === 0}
+                  <div class="empty-state">
+                    <p>No color shades defined yet. Create your first color shade.</p>
+                  </div>
+                {:else}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Color Sample</th>
+                        <th class="actions-col">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each $filteredColorShades as shade}
+                        <tr>
+                          <td>{shade.name}</td>
+                          <td>{shade.description || '-'}</td>
+                          <td>
+                            <div 
+                              class="color-sample" 
+                              style="background-color: {shade.hex_color || '#F1ECE4'};"
+                              title="{shade.hex_color || '#F1ECE4'}"
+                            ></div>
+                          </td>
+                          <td class="actions-col">
+                            <button class="icon-btn" on:click={() => openEditColorShadeModal(shade)} title="Edit">
+                              ✏️
+                            </button>
+                            <button class="icon-btn danger" on:click={() => confirmDeleteColorShade(shade)} title="Delete">
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  
+                  {#if $colorShadesTotalPages > 1}
+                    <div class="pagination">
+                      <button 
+                        class="page-btn" 
+                        disabled={$colorShadesCurrentPage === 1 || $colorShadesLoading} 
+                        on:click={previousColorShades}
+                      >
+                        Previous
+                      </button>
+                      <span class="page-info">
+                        Page {$colorShadesCurrentPage} of {$colorShadesTotalPages}
+                      </span>
+                      <button 
+                        class="page-btn" 
+                        disabled={$colorShadesCurrentPage >= $colorShadesTotalPages || $colorShadesLoading} 
+                        on:click={nextColorShades}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <!-- Danger Zone Section -->
       {#if selectedSection === 'danger'}
         <div class="section-content">
@@ -710,6 +1168,226 @@
       <div class="modal-actions">
         <button class="btn btn-danger" on:click={handleDeleteProcedure}>Delete</button>
         <button class="btn btn-secondary" on:click={() => { showProcedureDeleteConfirm = false; procedureToDelete = null; }}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Work Type Modal -->
+{#if showWorkTypeModal}
+  <div 
+    class="modal-overlay" 
+    role="button"
+    tabindex="0"
+    on:click={() => showWorkTypeModal = false}
+    on:keydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        showWorkTypeModal = false;
+      }
+    }}
+  >
+    <div class="modal-content small" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="modal-header">
+        <h3>{workTypeModalMode === 'create' ? 'Create New Work Type' : 'Edit Work Type'}</h3>
+        <button class="close-btn" on:click={() => showWorkTypeModal = false}>×</button>
+      </div>
+      <div class="modal-body">
+        {#if workTypeFormError}
+          <div class="alert alert-error">{workTypeFormError}</div>
+        {/if}
+        <div class="form-group">
+          <label for="workTypeName">Name *</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            placeholder="Enter work type name"
+            id="workTypeName"
+            bind:value={workTypeForm.name}
+            disabled={workTypeFormLoading}
+            on:keydown={(e) => e.key === 'Enter' && !workTypeFormLoading && handleWorkTypeSave()}
+          />
+        </div>
+        <div class="form-group">
+          <label for="workTypeDescription">Description</label>
+          <textarea 
+            class="form-textarea" 
+            placeholder="Enter description (optional)"
+            id="workTypeDescription"
+            bind:value={workTypeForm.description}
+            disabled={workTypeFormLoading}
+            rows="3"
+            on:keydown={(e) => {
+              if (e.key === 'Enter' && e.ctrlKey && !workTypeFormLoading) {
+                handleWorkTypeSave();
+              }
+            }}
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" on:click={() => showWorkTypeModal = false} disabled={workTypeFormLoading}>Cancel</button>
+        <button class="btn btn-primary" on:click={handleWorkTypeSave} disabled={workTypeFormLoading}>
+          {#if workTypeFormLoading}
+            Saving...
+          {:else if workTypeModalMode === 'create'}
+            Create Work Type
+          {:else}
+            Save Changes
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Work Type Confirmation -->
+{#if showWorkTypeDeleteConfirm}
+  <div 
+    class="modal-overlay" 
+    role="button"
+    tabindex="0"
+    on:click={() => showWorkTypeDeleteConfirm = false}
+    on:keydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        showWorkTypeDeleteConfirm = false;
+      }
+    }}
+  >
+    <div class="confirmation-modal" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="modal-header danger-header">
+        <h3>Delete Work Type</h3>
+      </div>
+      <div class="modal-content">
+        <p>Are you sure you want to delete the work type <strong>{workTypeToDelete?.name}</strong>? This action cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" on:click={handleDeleteWorkType}>Delete</button>
+        <button class="btn btn-secondary" on:click={() => { showWorkTypeDeleteConfirm = false; workTypeToDelete = null; }}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Color Shade Modal -->
+{#if showColorShadeModal}
+  <div 
+    class="modal-overlay" 
+    role="button"
+    tabindex="0"
+    on:click={() => showColorShadeModal = false}
+    on:keydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        showColorShadeModal = false;
+      }
+    }}
+  >
+    <div class="modal-content small" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="modal-header">
+        <h3>{colorShadeModalMode === 'create' ? 'Create New Color Shade' : 'Edit Color Shade'}</h3>
+        <button class="close-btn" on:click={() => showColorShadeModal = false}>×</button>
+      </div>
+      <div class="modal-body">
+        {#if colorShadeFormError}
+          <div class="alert alert-error">{colorShadeFormError}</div>
+        {/if}
+        <div class="form-group">
+          <label for="colorShadeName">Name *</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            placeholder="Enter color shade name"
+            id="colorShadeName"
+            bind:value={colorShadeForm.name}
+            disabled={colorShadeFormLoading}
+            on:keydown={(e) => e.key === 'Enter' && !colorShadeFormLoading && handleColorShadeSave()}
+          />
+        </div>
+        <div class="form-group">
+          <label for="colorShadeDescription">Description</label>
+          <textarea 
+            class="form-textarea" 
+            placeholder="Enter description (optional)"
+            id="colorShadeDescription"
+            bind:value={colorShadeForm.description}
+            disabled={colorShadeFormLoading}
+            rows="3"
+            on:keydown={(e) => {
+              if (e.key === 'Enter' && e.ctrlKey && !colorShadeFormLoading) {
+                handleColorShadeSave();
+              }
+            }}
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="colorShadeColor">Color</label>
+          <input 
+            type="color" 
+            class="form-input color-input" 
+            id="colorShadeColor"
+            bind:value={colorShadeForm.hex_color}
+            disabled={colorShadeFormLoading}
+          />
+        </div>
+        <div class="form-group">
+          <label for="colorShadeActive">Active</label>
+          <div class="toggle-group">
+            <div class="toggle-item">
+              <label for="colorShadeActive" class="toggle-label">
+                <span>{colorShadeForm.is_active ? 'Active' : 'Inactive'}</span>
+                <div class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    id="colorShadeActive"
+                    bind:checked={colorShadeForm.is_active}
+                    class="toggle-input"
+                    disabled={colorShadeFormLoading}
+                  />
+                  <span class="toggle-slider"></span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" on:click={() => showColorShadeModal = false} disabled={colorShadeFormLoading}>Cancel</button>
+        <button class="btn btn-primary" on:click={handleColorShadeSave} disabled={colorShadeFormLoading}>
+          {#if colorShadeFormLoading}
+            Saving...
+          {:else if colorShadeModalMode === 'create'}
+            Create Color Shade
+          {:else}
+            Save Changes
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Color Shade Confirmation -->
+{#if showColorShadeDeleteConfirm}
+  <div 
+    class="modal-overlay" 
+    role="button"
+    tabindex="0"
+    on:click={() => showColorShadeDeleteConfirm = false}
+    on:keydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        showColorShadeDeleteConfirm = false;
+      }
+    }}
+  >
+    <div class="confirmation-modal" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="modal-header danger-header">
+        <h3>Delete Color Shade</h3>
+      </div>
+      <div class="modal-content">
+        <p>Are you sure you want to delete the color shade <strong>{colorShadeToDelete?.name}</strong>? This action cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" on:click={handleDeleteColorShade}>Delete</button>
+        <button class="btn btn-secondary" on:click={() => { showColorShadeDeleteConfirm = false; colorShadeToDelete = null; }}>Cancel</button>
       </div>
     </div>
   </div>
@@ -1323,6 +2001,122 @@
 
   .modal-content.small {
     max-width: 420px;
+  }
+
+  .form-textarea {
+    width: 100%;
+    background: var(--color-panel);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+
+  .form-textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .form-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .color-input {
+    height: 40px;
+    cursor: pointer;
+    padding: 0.25rem;
+  }
+
+  .color-sample {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    display: inline-block;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+  .color-sample:hover {
+    transform: scale(1.1);
+  }
+
+  .toggle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    color: var(--color-text);
+    font-size: 0.9rem;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+  }
+
+  .toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--color-border);
+    transition: 0.3s;
+    border-radius: 24px;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  .toggle-input:checked + .toggle-slider {
+    background-color: var(--color-accent);
+  }
+
+  .toggle-input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+  }
+
+  .toggle-input:disabled + .toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>
 
