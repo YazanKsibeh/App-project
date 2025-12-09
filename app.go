@@ -20,12 +20,13 @@ type App struct {
 	expenseCategoryHandler *handlers.ExpenseCategoryHandler
 	workTypeHandler       *handlers.WorkTypeHandler
 	colorShadeHandler     *handlers.ColorShadeHandler
+	dentalLabHandler      *handlers.DentalLabHandler
 	licenseService        *handlers.LicenseService
 	authHandler           *handlers.AuthHandler
 }
 
 // NewApp creates a new App application struct
-func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, workTypeHandler *handlers.WorkTypeHandler, colorShadeHandler *handlers.ColorShadeHandler, authHandler *handlers.AuthHandler) *App {
+func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, workTypeHandler *handlers.WorkTypeHandler, colorShadeHandler *handlers.ColorShadeHandler, dentalLabHandler *handlers.DentalLabHandler, authHandler *handlers.AuthHandler) *App {
 	return &App{
 		patientHandler:        patientHandler,
 		appointmentHandler:    appointmentHandler,
@@ -36,6 +37,7 @@ func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handler
 		expenseCategoryHandler: expenseCategoryHandler,
 		workTypeHandler:       workTypeHandler,
 		colorShadeHandler:     colorShadeHandler,
+		dentalLabHandler:      dentalLabHandler,
 		licenseService:        handlers.NewLicenseService(),
 		authHandler:           authHandler,
 	}
@@ -578,4 +580,46 @@ func (a *App) DeleteColorShade(id int, licenseKey string) error {
 		return err
 	}
 	return a.colorShadeHandler.DeleteColorShade(id)
+}
+
+// Dental Lab Management Methods
+
+// CreateDentalLab creates a new dental lab
+func (a *App) CreateDentalLab(lab models.DentalLabForm, licenseKey string) (int64, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return 0, err
+	}
+	return a.dentalLabHandler.CreateDentalLab(lab)
+}
+
+// GetDentalLabsPaginated returns paginated dental labs
+func (a *App) GetDentalLabsPaginated(page, pageSize int, licenseKey string) (*models.DentalLabsResponse, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.dentalLabHandler.GetDentalLabsPaginated(page, pageSize)
+}
+
+// GetDentalLab returns a specific dental lab by id
+func (a *App) GetDentalLab(id int, licenseKey string) (*models.DentalLab, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.dentalLabHandler.GetDentalLab(id)
+}
+
+// UpdateDentalLab updates a dental lab
+func (a *App) UpdateDentalLab(id int, lab models.DentalLabForm, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.dentalLabHandler.UpdateDentalLab(id, lab)
+}
+
+// DeleteDentalLab deletes a dental lab
+func (a *App) DeleteDentalLab(id int, licenseKey string) error {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return err
+	}
+	return a.dentalLabHandler.DeleteDentalLab(id)
 }
