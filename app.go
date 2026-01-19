@@ -21,12 +21,13 @@ type App struct {
 	workTypeHandler       *handlers.WorkTypeHandler
 	colorShadeHandler     *handlers.ColorShadeHandler
 	dentalLabHandler      *handlers.DentalLabHandler
+	labOrderHandler      *handlers.LabOrderHandler
 	licenseService        *handlers.LicenseService
 	authHandler           *handlers.AuthHandler
 }
 
 // NewApp creates a new App application struct
-func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, workTypeHandler *handlers.WorkTypeHandler, colorShadeHandler *handlers.ColorShadeHandler, dentalLabHandler *handlers.DentalLabHandler, authHandler *handlers.AuthHandler) *App {
+func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handlers.AppointmentHandler, paymentHandler *handlers.PaymentHandler, procedureHandler *handlers.ProcedureHandler, sessionHandler *handlers.SessionHandler, invoiceHandler *handlers.InvoiceHandler, expenseCategoryHandler *handlers.ExpenseCategoryHandler, workTypeHandler *handlers.WorkTypeHandler, colorShadeHandler *handlers.ColorShadeHandler, dentalLabHandler *handlers.DentalLabHandler, labOrderHandler *handlers.LabOrderHandler, authHandler *handlers.AuthHandler) *App {
 	return &App{
 		patientHandler:        patientHandler,
 		appointmentHandler:    appointmentHandler,
@@ -38,6 +39,7 @@ func NewApp(patientHandler *handlers.PatientHandler, appointmentHandler *handler
 		workTypeHandler:       workTypeHandler,
 		colorShadeHandler:     colorShadeHandler,
 		dentalLabHandler:      dentalLabHandler,
+		labOrderHandler:       labOrderHandler,
 		licenseService:        handlers.NewLicenseService(),
 		authHandler:           authHandler,
 	}
@@ -622,4 +624,30 @@ func (a *App) DeleteDentalLab(id int, licenseKey string) error {
 		return err
 	}
 	return a.dentalLabHandler.DeleteDentalLab(id)
+}
+
+// Lab Order Management Methods
+
+// GetLabOrdersPaginated returns paginated lab orders
+func (a *App) GetLabOrdersPaginated(page, pageSize int, searchOrderNumber, searchPatientName, searchLabName, statusFilter, licenseKey string) (*models.LabOrdersResponse, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.labOrderHandler.GetLabOrdersPaginated(page, pageSize, searchOrderNumber, searchPatientName, searchLabName, statusFilter)
+}
+
+// GetLabOrder returns a specific lab order by id
+func (a *App) GetLabOrder(id int, licenseKey string) (*models.LabOrderDetail, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.labOrderHandler.GetLabOrder(id)
+}
+
+// CreateLabOrder creates a new lab order
+func (a *App) CreateLabOrder(order models.LabOrderForm, userID int, licenseKey string) (*models.CreateLabOrderResponse, error) {
+	if err := a.checkLicense(licenseKey); err != nil {
+		return nil, err
+	}
+	return a.labOrderHandler.CreateLabOrder(order, userID)
 }

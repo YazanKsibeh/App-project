@@ -7,6 +7,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // DentalLabHandler handles dental lab operations
@@ -76,6 +77,14 @@ func (h *DentalLabHandler) CreateDentalLab(lab models.DentalLabForm) (int64, err
 		return 0, fmt.Errorf("phone secondary must be exactly 10 digits")
 	}
 
+	// Validate email format if provided
+	if lab.Email != "" {
+		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+		if !emailRegex.MatchString(strings.TrimSpace(lab.Email)) {
+			return 0, fmt.Errorf("invalid email format")
+		}
+	}
+
 	// Check name uniqueness
 	var count int
 	err := h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE name = ?", lab.Name).Scan(&count)
@@ -84,6 +93,37 @@ func (h *DentalLabHandler) CreateDentalLab(lab models.DentalLabForm) (int64, err
 	}
 	if count > 0 {
 		return 0, fmt.Errorf("lab name already exists")
+	}
+
+	// Check phone primary uniqueness
+	err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE phone_primary = ?", lab.PhonePrimary).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to check phone primary: %v", err)
+	}
+	if count > 0 {
+		return 0, fmt.Errorf("phone primary already exists")
+	}
+
+	// Check phone secondary uniqueness if provided
+	if lab.PhoneSecondary != "" {
+		err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE phone_secondary = ?", lab.PhoneSecondary).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("failed to check phone secondary: %v", err)
+		}
+		if count > 0 {
+			return 0, fmt.Errorf("phone secondary already exists")
+		}
+	}
+
+	// Check email uniqueness if provided
+	if lab.Email != "" {
+		err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE email = ?", strings.TrimSpace(lab.Email)).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("failed to check email: %v", err)
+		}
+		if count > 0 {
+			return 0, fmt.Errorf("email already exists")
+		}
 	}
 
 	// Generate code
@@ -215,6 +255,14 @@ func (h *DentalLabHandler) UpdateDentalLab(id int, lab models.DentalLabForm) err
 		return fmt.Errorf("phone secondary must be exactly 10 digits")
 	}
 
+	// Validate email format if provided
+	if lab.Email != "" {
+		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+		if !emailRegex.MatchString(strings.TrimSpace(lab.Email)) {
+			return fmt.Errorf("invalid email format")
+		}
+	}
+
 	// Check name uniqueness (excluding current lab)
 	var count int
 	err := h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE name = ? AND id != ?", lab.Name, id).Scan(&count)
@@ -223,6 +271,37 @@ func (h *DentalLabHandler) UpdateDentalLab(id int, lab models.DentalLabForm) err
 	}
 	if count > 0 {
 		return fmt.Errorf("lab name already exists")
+	}
+
+	// Check phone primary uniqueness (excluding current lab)
+	err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE phone_primary = ? AND id != ?", lab.PhonePrimary, id).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check phone primary: %v", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("phone primary already exists")
+	}
+
+	// Check phone secondary uniqueness if provided (excluding current lab)
+	if lab.PhoneSecondary != "" {
+		err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE phone_secondary = ? AND id != ?", lab.PhoneSecondary, id).Scan(&count)
+		if err != nil {
+			return fmt.Errorf("failed to check phone secondary: %v", err)
+		}
+		if count > 0 {
+			return fmt.Errorf("phone secondary already exists")
+		}
+	}
+
+	// Check email uniqueness if provided (excluding current lab)
+	if lab.Email != "" {
+		err = h.db.QueryRow("SELECT COUNT(*) FROM dental_labs WHERE email = ? AND id != ?", strings.TrimSpace(lab.Email), id).Scan(&count)
+		if err != nil {
+			return fmt.Errorf("failed to check email: %v", err)
+		}
+		if count > 0 {
+			return fmt.Errorf("email already exists")
+		}
 	}
 
 	query := `UPDATE dental_labs SET name = ?, contact_person = ?, phone_primary = ?, phone_secondary = ?, 

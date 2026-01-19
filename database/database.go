@@ -441,7 +441,7 @@ func InitDB() (*sql.DB, error) {
 		color_shade_id INTEGER,
 		lab_cost INTEGER,
 		order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-		status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'in_progress', 'ready', 'delivered', 'cancelled')),
+		status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'delivered', 'cancelled')),
 		notes TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -476,6 +476,26 @@ func InitDB() (*sql.DB, error) {
 	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN notes TEXT;`)
 	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
 	_, _ = db.Exec(`ALTER TABLE lab_orders ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`)
+
+	// Create indexes for lab_orders table (optimization for queries)
+	// Critical: Index for ORDER BY created_at DESC (most common sort)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_created_at ON lab_orders(created_at DESC);`)
+
+	// Foreign key indexes for JOIN performance
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_patient_id ON lab_orders(patient_id);`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_lab_id ON lab_orders(lab_id);`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_work_type_id ON lab_orders(work_type_id);`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_created_by ON lab_orders(created_by);`)
+
+	// Index for status filtering (if status dropdown is added)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_status ON lab_orders(status);`)
+
+	// Composite index for common filter: status + date sort
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_lab_orders_status_created_at ON lab_orders(status, created_at DESC);`)
+
+	// Indexes for search optimization (on referenced tables)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(name);`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_dental_labs_name ON dental_labs(name);`)
 
 	// Create patient_data directory if it doesn't exist
 	err = os.MkdirAll("patient_data", 0755)

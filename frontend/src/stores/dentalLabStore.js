@@ -35,6 +35,66 @@ function getLicenseKey() {
     return key;
 }
 
+// Helper to extract error message from Wails error objects
+function extractErrorMessage(err) {
+    if (!err) return 'Unknown error';
+    
+    // If it's already a string, return it
+    if (typeof err === 'string') {
+        return err;
+    }
+    
+    // Try common error properties
+    if (err.message) {
+        return err.message;
+    }
+    
+    if (err.error) {
+        if (typeof err.error === 'string') {
+            return err.error;
+        }
+        if (err.error.message) {
+            return err.error.message;
+        }
+    }
+    
+    if (err.data) {
+        if (typeof err.data === 'string') {
+            return err.data;
+        }
+        if (err.data.error) {
+            return typeof err.data.error === 'string' ? err.data.error : err.data.error.message || err.data.error;
+        }
+        if (err.data.message) {
+            return err.data.message;
+        }
+    }
+    
+    // Try toString
+    if (err.toString) {
+        const errStr = err.toString();
+        if (errStr !== '[object Object]') {
+            // Try to extract from "Error: message" format
+            if (errStr.includes('Error:')) {
+                return errStr.split('Error:')[1].trim();
+            }
+            return errStr;
+        }
+    }
+    
+    // Last resort: JSON stringify (but limit length)
+    try {
+        const jsonStr = JSON.stringify(err);
+        if (jsonStr && jsonStr !== '{}' && jsonStr.length < 500) {
+            return jsonStr;
+        }
+    } catch (e) {
+        // Ignore JSON errors
+    }
+    
+    return 'Unknown error';
+}
+
 // Derived store for filtered dental labs
 export const filteredDentalLabs = derived(
     [dentalLabs, dentalLabSearch],
@@ -128,7 +188,9 @@ export async function createDentalLab(form) {
         return true;
     } catch (err) {
         console.error('[dentalLabStore] createDentalLab error:', err);
-        dentalLabsError.set(err.message || 'Failed to create dental lab');
+        const errorMessage = extractErrorMessage(err) || 'Failed to create dental lab';
+        console.error('[dentalLabStore] Extracted error message:', errorMessage);
+        dentalLabsError.set(errorMessage);
         return false;
     } finally {
         dentalLabsLoading.set(false);
@@ -159,8 +221,9 @@ export async function updateDentalLab(id, form) {
         }
         return true;
     } catch (err) {
-        dentalLabsError.set(err.message || 'Failed to update dental lab');
-        console.error('updateDentalLab error:', err);
+        console.error('[dentalLabStore] updateDentalLab error:', err);
+        const errorMessage = extractErrorMessage(err) || 'Failed to update dental lab';
+        dentalLabsError.set(errorMessage);
         return false;
     } finally {
         dentalLabsLoading.set(false);

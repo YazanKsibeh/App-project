@@ -12,7 +12,7 @@ func TestGenKey(t *testing.T) {
 
 	fib := arrayInit()
 
-	date := "20260101" // change date - 30 days from now
+	date := "20261030" // change date - 30 days from now
 	offset := 54       // change offset key
 
 	// convert string to base64

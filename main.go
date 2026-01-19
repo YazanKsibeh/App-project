@@ -33,6 +33,7 @@ func main() {
 	workTypeHandler := handlers.NewWorkTypeHandler(db)
 	colorShadeHandler := handlers.NewColorShadeHandler(db)
 	dentalLabHandler := handlers.NewDentalLabHandler(db)
+	labOrderHandler := handlers.NewLabOrderHandler(db)
 	authHandler := handlers.NewAuthHandler(db)
 
 	// Initialize admin user if it doesn't exist
@@ -42,7 +43,7 @@ func main() {
 	}
 
 	// Create an instance of the app structure
-	app := NewApp(patientHandler, appointmentHandler, paymentHandler, procedureHandler, sessionHandler, invoiceHandler, expenseCategoryHandler, workTypeHandler, colorShadeHandler, dentalLabHandler, authHandler)
+	app := NewApp(patientHandler, appointmentHandler, paymentHandler, procedureHandler, sessionHandler, invoiceHandler, expenseCategoryHandler, workTypeHandler, colorShadeHandler, dentalLabHandler, labOrderHandler, authHandler)
 
 	// Create application with options
 	err = wails.Run(&options.App{
